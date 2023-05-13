@@ -2,10 +2,13 @@ use axum::extract::Path;
 use hyper::StatusCode;
 use serde_json::json;
 use simple_db::db::DB;
-use axum::{Router, Json};
+use axum::{Router, Json, Extension};
 use axum::routing::{put, get};
 use axum::response::IntoResponse;
+use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::Mutex;
+use std::sync::Arc;
 
 async fn handle_get(key: Path<String>) -> impl IntoResponse {
     println!("accessed");
@@ -16,19 +19,19 @@ async fn handle_get(key: Path<String>) -> impl IntoResponse {
     )
 }
 
-const DB: DB = DB::new(); // クロージャとか使ってmain関数内のdbをキャプチャしたい
-
-async fn handle_put(kv: Path<String>) -> impl IntoResponse {
+async fn handle_put(Extension(db): Extension<Arc<Mutex<HashMap<String, String>>>>, Path(post_data): Path<String>) -> impl IntoResponse {
     StatusCode::CREATED
 }
 
 #[tokio::main]
 async fn main() {
-    // let db = DB::new();
+    let db = DB::new();
 
     let app = Router::new()
         .route("/api/:key", get(handle_get))
-        .route("/api", put(handle_put));
+        .route("/api", put(handle_put)
+        .layer(Extension(db.get_arc())));
+
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
 
     axum::Server::bind(&addr)
